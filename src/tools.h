@@ -3,6 +3,9 @@
 #include <vector>
 #include "Eigen/Dense"
 
+#define TARGET_RMSE_P (0.11)
+#define TARGET_RMSE_V (0.52)
+
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using namespace std;
