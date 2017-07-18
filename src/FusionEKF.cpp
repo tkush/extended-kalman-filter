@@ -62,11 +62,22 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack, i
 			float rho_dot = measurement_pack.raw_measurements_(2);
 			float px, py, vx, vy;
 
-			px = rho * cos (phi);
-			py = rho * sin (phi);
-			vx = rho_dot * cos (phi); //assuming phi_dot = 0
-			vy = rho_dot * sin (phi); //assuming phi_dot = 0
-
+			if ( rho < 1e-5 )
+			{
+				// target is very close to radar
+				// initialize px, py to be target rmse
+				px = TARGET_RMSE_P;
+				py = TARGET_RMSE_P;
+				vx = 0;
+				vy = 0;
+			}		
+			else
+			{
+				px = rho * cos (phi);
+				py = rho * sin (phi);
+				vx = 0; // rho_dot is rate of rho, not target velocity
+				vy = 0; // rho_dot is rate of rho, not target velocity
+			}
 			ekf_.x_ << px, py, vx, vy;
 		}
 		else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) 
@@ -99,20 +110,24 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack, i
 		dt /= 1.e6;
 		previous_timestamp_ = measurement_pack.timestamp_;
 
-		// Update state transition matrix F
-		ekf_.F_(0,2) = dt;
-		ekf_.F_(1,3) = dt;
+		// do not make a prediction if dt is small
+		if ( dt > 1e-5 )
+		{
+			// Update state transition matrix F
+			ekf_.F_(0,2) = dt;
+			ekf_.F_(1,3) = dt;
 
-		// Update the process noise covariance matrix
-		float noise_ax = 9;
-		float noise_ay = 9;
-		ekf_.Q_ << dt*dt*dt*dt*noise_ax/4, 0, dt*dt*dt*noise_ax/2, 0,
-			0, dt*dt*dt*dt*noise_ay/4, 0, dt*dt*dt*noise_ay/2,
-			dt*dt*dt*noise_ax/2, 0, dt*dt*noise_ax, 0,
-			0, dt*dt*dt*noise_ay/2, 0, dt*dt*noise_ay;
+			// Update the process noise covariance matrix
+			float noise_ax = 9;
+			float noise_ay = 9;
+			ekf_.Q_ << dt*dt*dt*dt*noise_ax/4, 0, dt*dt*dt*noise_ax/2, 0,
+				0, dt*dt*dt*dt*noise_ay/4, 0, dt*dt*dt*noise_ay/2,
+				dt*dt*dt*noise_ax/2, 0, dt*dt*noise_ax, 0,
+				0, dt*dt*dt*noise_ay/2, 0, dt*dt*noise_ay;
 
-		// predict
-		ekf_.Predict();
+			// predict
+			ekf_.Predict();
+		}
 
 		/*****************************************************************************
 		*  Update

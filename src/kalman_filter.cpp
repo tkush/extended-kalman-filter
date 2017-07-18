@@ -34,8 +34,9 @@ void KalmanFilter::Update(const VectorXd &z)
 {
 	VectorXd y = z - H_ * x_;
 	MatrixXd H_t = H_.transpose();
-	MatrixXd S = H_ * P_ * H_t + R_;
-	MatrixXd K = P_ * H_t * S.inverse();
+	MatrixXd PHt = P_ * H_t;
+	MatrixXd S = H_ * PHt + R_;
+	MatrixXd K = PHt * S.inverse();
 
 	// new state
 	x_ = x_ + (K * y);
@@ -48,9 +49,16 @@ void KalmanFilter::Update(const VectorXd &z)
 void KalmanFilter::UpdateEKF(const VectorXd &z, float dt) 
 {
 	float pi = 22./7.f;
+
 	//calculate h(x')
-	float rho = sqrt ( x_(0) * x_(0) + x_(1) * x_(1) );	
-	float phi = atan2( x_(1), x_(0) );	
+	float rho = sqrt ( x_(0) * x_(0) + x_(1) * x_(1) );
+	
+	float phi;
+	if ( fabs( x_(0) ) < 1e-5 && fabs ( x_(1) ) < 1e-5 )
+		phi = 0;
+	else 
+		phi = atan2( x_(1), x_(0) );
+
 	float rho_dot;
 	// check for divide by zero
 	if ( rho < 1e-5 )
@@ -74,8 +82,9 @@ void KalmanFilter::UpdateEKF(const VectorXd &z, float dt)
 			y(1) += 2*pi;
 	}
 	MatrixXd H_t = H_.transpose();
-	MatrixXd S = H_ * P_ * H_t + R_;
-	MatrixXd K = P_ * H_t * S.inverse();
+	MatrixXd PHt = P_ * H_t;
+	MatrixXd S = H_ * PHt + R_;
+	MatrixXd K = PHt * S.inverse();
 
 	// new state
 	x_ = x_ + (K * y);
